@@ -26,6 +26,7 @@ import mediaRoutes from '../interfaces/http/routes/media/mediaRoutes';
 
 // Middleware
 import { errorHandler, notFoundHandler } from '../shared/middleware/errorHandler';
+import { authenticate } from '../shared/middleware/authMiddleware';
 dotenv.config();
 
 const app = express();
@@ -38,7 +39,7 @@ const dbConnection = DatabaseConnection.getInstance();
 app.use(cors({
   origin: '*', // ahora sí funciona con '*'
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json({ limit: '100mb' }));
@@ -62,21 +63,23 @@ app.get('/', (_req: Request, res: Response) => {
 // FORMARTE API - UNIFIED STRUCTURE
 // ═══════════════════════════════════════════════════════════════
 
-// Core API Routes
-app.use('/api/auth', userRoutes);               // Authentication & user management
-app.use('/api/academic', academicRoutes);      // Academic operations (areas, subjects, simulacros)
-app.use('/api/students', studentRoutes);       // Student management & ranking
-app.use('/api/system', systemRoutes);          // System utilities & CRUD operations
-app.use('/api/media', mediaRoutes);            // Media management (images, files, PDFs)
+// Public Routes (no authentication required)
+app.use('/api/auth', userRoutes);               // Authentication & user management (login, register)
 
-// Specific API Routes  
-app.use('/api/pdf', pdfRoutes);                // PDF operations (legacy compatibility)
-app.use('/api/qualifier', qualifierRoute);     // Qualifier operations
-app.use('/api/time', timeRoute);               // Time zone operations
+// Protected Routes (require authentication with IP validation)
+app.use('/api/academic', authenticate, academicRoutes);      // Academic operations (areas, subjects, simulacros)
+app.use('/api/students', authenticate, studentRoutes);       // Student management & ranking
+app.use('/api/system', authenticate, systemRoutes);          // System utilities & CRUD operations
+app.use('/api/media', authenticate, mediaRoutes);            // Media management (images, files, PDFs)
 
-// Legacy routes (maintain compatibility)
-app.use('/simulacro', crudMobile);             // Mobile CRUD operations
-app.use("/progress-app", progressRoute);       // Progress tracking
+// Specific API Routes (protected)
+app.use('/api/pdf', authenticate, pdfRoutes);                // PDF operations (legacy compatibility)
+app.use('/api/qualifier', authenticate, qualifierRoute);     // Qualifier operations
+app.use('/api/time', authenticate, timeRoute);               // Time zone operations
+
+// Legacy routes (protected for compatibility)
+app.use('/simulacro', authenticate, crudMobile);             // Mobile CRUD operations
+app.use("/progress-app", authenticate, progressRoute);       // Progress tracking
 
 // Error handling middleware (debe ir después de todas las rutas)
 app.use(notFoundHandler);
@@ -101,22 +104,23 @@ server.listen(port, async () => {
     console.log(`🚀 FormarTE API listening at http://localhost:${port}`);
     console.log(`📡 WebSocket endpoint: ws://localhost:${port}/ws/notifications`);
     console.log('\n═══════════════════════════════════════════════════════════════');
-    console.log('🌟 FORMARTE API - UNIFIED STRUCTURE');
+    console.log('🌟 FORMARTE API - UNIFIED STRUCTURE WITH IP VALIDATION');
     console.log('═══════════════════════════════════════════════════════════════');
-    console.log('\n📋 Core API Routes:');
-    console.log('  🔐 Auth:      /api/auth/*      - Authentication & user management');
-    console.log('  🎓 Academic:  /api/academic/*  - Areas, subjects, simulacros');
-    console.log('  👥 Students:  /api/students/*  - Student management & ranking');
-    console.log('  ⚙️  System:    /api/system/*    - System utilities & CRUD');
-    console.log('  📁 Media:     /api/media/*     - Images, files, PDFs');
-    console.log('\n📋 Specific API Routes:');
-    console.log('  📄 PDF:       /api/pdf/*       - PDF operations');
-    console.log('  🏆 Qualifier: /api/qualifier/* - Qualifier operations');
-    console.log('  🕐 Time:      /api/time/*      - Time zone operations');
-    console.log('\n📋 Legacy Routes (compatibility):');
-    console.log('  📱 Simulacro: /simulacro/*     - Mobile CRUD operations');
-    console.log('  📊 Progress:  /progress-app/*  - Progress tracking');
-    console.log('\n═══════════════════════════════════════════════════════════════');
+    console.log('\n📋 Public Routes (No Auth):');
+    console.log('  🔓 Auth:      /api/auth/*      - Login, Register, Logout');
+    console.log('\n📋 Protected Routes (Auth + IP Validation Required):');
+    console.log('  🔐 Academic:  /api/academic/*  - Areas, subjects, simulacros');
+    console.log('  🔐 Students:  /api/students/*  - Student management & ranking');
+    console.log('  🔐 System:    /api/system/*    - System utilities & CRUD');
+    console.log('  🔐 Media:     /api/media/*     - Images, files, PDFs');
+    console.log('  🔐 PDF:       /api/pdf/*       - PDF operations');
+    console.log('  🔐 Qualifier: /api/qualifier/* - Qualifier operations');
+    console.log('  🔐 Time:      /api/time/*      - Time zone operations');
+    console.log('\n📋 Legacy Routes (Protected):');
+    console.log('  🔐 Simulacro: /simulacro/*     - Mobile CRUD operations');
+    console.log('  🔐 Progress:  /progress-app/*  - Progress tracking');
+    console.log('\n🔒 Security: All protected routes validate JWT + IP address');
+    console.log('═══════════════════════════════════════════════════════════════');
     
     startTrackingPositions();
   } catch (error) {

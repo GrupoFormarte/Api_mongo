@@ -1,0 +1,9 @@
+.env
+node_modules/
+.DS_Store
+package.json
+tsconfig.json
+uploads/
+docker-compose.yml
+Dockerfile
+build
